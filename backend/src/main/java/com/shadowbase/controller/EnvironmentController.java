@@ -1,4 +1,3 @@
-
 package com.shadowbase.controller;
 
 import com.shadowbase.service.EnvironmentService;
@@ -22,18 +21,14 @@ public class EnvironmentController {
     }
 
     @PostMapping("/seed")
-    public Map<String, String> seedEnvironment() throws Exception {
-
+    public Map<String, String> seedEnvironment() {
         String message = environmentService.seedEnvironment();
-
         return Map.of("message", message);
     }
 
     @DeleteMapping("/stop")
     public Map<String, String> stopEnvironment() {
-
         String message = environmentService.stopEnvironment();
-
         return Map.of("message", message);
     }
 }
