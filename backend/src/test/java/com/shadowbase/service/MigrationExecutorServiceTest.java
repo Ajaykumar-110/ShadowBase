@@ -35,7 +35,7 @@ class MigrationExecutorServiceTest {
                         new MigrationPlannerService.MigrationOperation(
                                 "Create employees table",
                                 "CREATE TABLE employees (id INT);",
-                                "LOW",
+                                MigrationPlannerService.RiskLevel.LOW,
                                 false
                         );
 
