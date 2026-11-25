@@ -1,6 +1,8 @@
 
 package com.shadowbase.service;
 
+import org.springframework.stereotype.Service;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -9,6 +11,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
+@Service
 public class MigrationHistoryService {
 
     private static final String CREATE_HISTORY_TABLE = """
@@ -27,6 +30,8 @@ public class MigrationHistoryService {
     public void initialize(Connection connection)
             throws SQLException {
 
+        validateConnection(connection);
+
         try (Statement statement = connection.createStatement()) {
             statement.execute(CREATE_HISTORY_TABLE);
         }
@@ -40,16 +45,17 @@ public class MigrationHistoryService {
             String errorMessage
     ) throws SQLException {
 
-        if (connection == null ||
-                description == null || description.isBlank() ||
-                sql == null || sql.isBlank()) {
+        validateConnection(connection);
+
+        if (description == null || description.isBlank()
+                || sql == null || sql.isBlank()) {
             throw new IllegalArgumentException(
-                    "Valid connection, description and SQL are required."
+                    "Valid description and SQL are required."
             );
         }
 
-        if (!"SUCCESS".equals(status) &&
-                !"FAILED".equals(status)) {
+        if (!"SUCCESS".equals(status)
+                && !"FAILED".equals(status)) {
             throw new IllegalArgumentException(
                     "Status must be SUCCESS or FAILED."
             );
@@ -88,13 +94,17 @@ public class MigrationHistoryService {
             }
         }
 
-        throw new SQLException("Failed to record migration history.");
+        throw new SQLException(
+                "Failed to record migration history."
+        );
     }
 
     public boolean isAlreadyExecuted(
             Connection connection,
             String description
     ) throws SQLException {
+
+        validateConnection(connection);
 
         String query = """
                 SELECT EXISTS (
@@ -117,30 +127,45 @@ public class MigrationHistoryService {
         }
     }
 
-    public int getTotalMigrations(
-            Connection connection
-    ) throws SQLException {
+    public int getTotalMigrations(Connection connection)
+            throws SQLException {
 
-        String query = """
-                SELECT COUNT(*) FROM migration_history
-                """;
-
-        try (Statement statement = connection.createStatement();
-             ResultSet result = statement.executeQuery(query)) {
-
-            result.next();
-            return result.getInt(1);
-        }
+        return countMigrations(
+                connection,
+                "SELECT COUNT(*) FROM migration_history"
+        );
     }
 
-    public int getSuccessfulMigrations(
-            Connection connection
-    ) throws SQLException {
+    public int getSuccessfulMigrations(Connection connection)
+            throws SQLException {
 
-        String query = """
+        return countMigrations(
+                connection,
+                """
                 SELECT COUNT(*) FROM migration_history
                 WHERE status = 'SUCCESS'
-                """;
+                """
+        );
+    }
+
+    public int getFailedMigrations(Connection connection)
+            throws SQLException {
+
+        return countMigrations(
+                connection,
+                """
+                SELECT COUNT(*) FROM migration_history
+                WHERE status = 'FAILED'
+                """
+        );
+    }
+
+    private int countMigrations(
+            Connection connection,
+            String query
+    ) throws SQLException {
+
+        validateConnection(connection);
 
         try (Statement statement = connection.createStatement();
              ResultSet result = statement.executeQuery(query)) {
@@ -150,21 +175,12 @@ public class MigrationHistoryService {
         }
     }
 
-    public int getFailedMigrations(
-            Connection connection
-    ) throws SQLException {
+    private void validateConnection(Connection connection) {
 
-        String query = """
-                SELECT COUNT(*) FROM migration_history
-                WHERE status = 'FAILED'
-                """;
-
-        try (Statement statement = connection.createStatement();
-             ResultSet result = statement.executeQuery(query)) {
-
-            result.next();
-            return result.getInt(1);
+        if (connection == null) {
+            throw new IllegalArgumentException(
+                    "Database connection is required."
+            );
         }
     }
 }
-

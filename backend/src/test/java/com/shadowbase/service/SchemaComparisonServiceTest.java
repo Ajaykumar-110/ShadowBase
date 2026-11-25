@@ -51,26 +51,45 @@ class SchemaComparisonServiceTest {
                 )
             ) {
 
+                // SOURCE DATABASE
                 try (Statement statement = source.createStatement()) {
+
                     statement.execute("""
                         CREATE TABLE employees (
                             id INTEGER PRIMARY KEY,
                             name VARCHAR(100),
-                            department VARCHAR(100)
+                            department VARCHAR(100),
+                            salary INTEGER
+                        )
+                    """);
+
+                    statement.execute("""
+                        CREATE TABLE source_only (
+                            id INTEGER PRIMARY KEY
                         )
                     """);
                 }
 
+                // TARGET DATABASE
                 try (Statement statement = target.createStatement()) {
+
                     statement.execute("""
                         CREATE TABLE employees (
                             id INTEGER PRIMARY KEY,
                             name VARCHAR(100),
-                            email VARCHAR(150)
+                            email VARCHAR(150),
+                            salary VARCHAR(50)
+                        )
+                    """);
+
+                    statement.execute("""
+                        CREATE TABLE target_only (
+                            id INTEGER PRIMARY KEY
                         )
                     """);
                 }
 
+                // COMPARE SCHEMAS
                 SchemaComparisonService service =
                         new SchemaComparisonService();
 
@@ -79,23 +98,40 @@ class SchemaComparisonServiceTest {
 
                 differences.forEach(System.out::println);
 
+                // 1. Missing column
                 assertTrue(differences.stream().anyMatch(
-                    d -> d.type() ==
-                        DifferenceType.MISSING_COLUMN_IN_TARGET
+                    d -> d.type() == DifferenceType.MISSING_COLUMN_IN_TARGET
                         && "department".equals(d.columnName())
                 ));
 
+                // 2. Extra column
                 assertTrue(differences.stream().anyMatch(
-                    d -> d.type() ==
-                        DifferenceType.EXTRA_COLUMN_IN_TARGET
+                    d -> d.type() == DifferenceType.EXTRA_COLUMN_IN_TARGET
                         && "email".equals(d.columnName())
                 ));
 
+                // 3. Missing table
+                assertTrue(differences.stream().anyMatch(
+                    d -> d.type() == DifferenceType.MISSING_TABLE_IN_TARGET
+                        && "source_only".equals(d.tableName())
+                ));
+
+                // 4. Extra table
+                assertTrue(differences.stream().anyMatch(
+                    d -> d.type() == DifferenceType.EXTRA_TABLE_IN_TARGET
+                        && "target_only".equals(d.tableName())
+                ));
+
+                // 5. Column type mismatch
+                assertTrue(differences.stream().anyMatch(
+                    d -> d.type() == DifferenceType.COLUMN_TYPE_MISMATCH
+                        && "salary".equals(d.columnName())
+                ));
+
                 System.out.println(
-                    "Schema comparison completed successfully!"
+                    "All five schema comparison scenarios verified!"
                 );
             }
         }
     }
 }
-

@@ -1,12 +1,20 @@
 
 package com.shadowbase.service;
 
+import org.springframework.stereotype.Service;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
+@Service
 public class SchemaComparisonService {
 
     public enum DifferenceType {
@@ -34,6 +42,12 @@ public class SchemaComparisonService {
             Connection source,
             Connection target
     ) throws SQLException {
+
+        if (source == null || target == null) {
+            throw new IllegalArgumentException(
+                    "Source and target connections are required."
+            );
+        }
 
         Map<String, Map<String, ColumnInfo>> sourceSchema =
                 inspect(source);
@@ -83,7 +97,9 @@ public class SchemaComparisonService {
                 if (sourceInfo == null) {
                     differences.add(new SchemaDifference(
                             DifferenceType.EXTRA_COLUMN_IN_TARGET,
-                            table, column, null,
+                            table,
+                            column,
+                            null,
                             targetInfo.typeName()
                     ));
                     continue;
@@ -92,8 +108,10 @@ public class SchemaComparisonService {
                 if (targetInfo == null) {
                     differences.add(new SchemaDifference(
                             DifferenceType.MISSING_COLUMN_IN_TARGET,
-                            table, column,
-                            sourceInfo.typeName(), null
+                            table,
+                            column,
+                            sourceInfo.typeName(),
+                            null
                     ));
                     continue;
                 }
@@ -101,7 +119,8 @@ public class SchemaComparisonService {
                 if (sourceInfo.jdbcType() != targetInfo.jdbcType()) {
                     differences.add(new SchemaDifference(
                             DifferenceType.COLUMN_TYPE_MISMATCH,
-                            table, column,
+                            table,
+                            column,
                             sourceInfo.typeName(),
                             targetInfo.typeName()
                     ));
@@ -116,25 +135,39 @@ public class SchemaComparisonService {
             Connection connection
     ) throws SQLException {
 
+        if (connection == null) {
+            throw new IllegalArgumentException(
+                    "Database connection cannot be null."
+            );
+        }
+
         Map<String, Map<String, ColumnInfo>> schema =
                 new TreeMap<>();
 
         DatabaseMetaData metadata = connection.getMetaData();
 
+        String catalog = connection.getCatalog();
+        String schemaName = connection.getSchema();
+
         try (ResultSet tables = metadata.getTables(
-                null, "public", "%", new String[]{"TABLE"})) {
+                catalog,
+                schemaName,
+                "%",
+                new String[]{"TABLE"}
+        )) {
 
             while (tables.next()) {
 
-                String tableName =
-                        tables.getString("TABLE_NAME");
+                String tableName = tables.getString("TABLE_NAME");
 
-                Map<String, ColumnInfo> columns =
-                        new TreeMap<>();
+                Map<String, ColumnInfo> columns = new TreeMap<>();
 
-                try (ResultSet columnResults =
-                             metadata.getColumns(
-                                     null, "public", tableName, "%")) {
+                try (ResultSet columnResults = metadata.getColumns(
+                        catalog,
+                        schemaName,
+                        tableName,
+                        "%"
+                )) {
 
                     while (columnResults.next()) {
 
@@ -147,8 +180,10 @@ public class SchemaComparisonService {
                         int jdbcType =
                                 columnResults.getInt("DATA_TYPE");
 
-                        columns.put(columnName,
-                                new ColumnInfo(typeName, jdbcType));
+                        columns.put(
+                                columnName,
+                                new ColumnInfo(typeName, jdbcType)
+                        );
                     }
                 }
 
@@ -159,4 +194,3 @@ public class SchemaComparisonService {
         return schema;
     }
 }
-

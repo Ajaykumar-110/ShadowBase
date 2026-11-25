@@ -1,12 +1,15 @@
 
 package com.shadowbase.service;
 
+import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import com.shadowbase.service.SchemaComparisonService.SchemaDifference;
 
+@Service
 public class MigrationPlannerService {
 
     public enum RiskLevel {
@@ -41,6 +44,7 @@ public class MigrationPlannerService {
         for (SchemaDifference difference : differences) {
 
             String table = quoteIdentifier(difference.tableName());
+
             String column = difference.columnName() == null
                     ? null
                     : quoteIdentifier(difference.columnName());
@@ -127,4 +131,3 @@ public class MigrationPlannerService {
         return "\"" + identifier + "\"";
     }
 }
-
